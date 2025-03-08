@@ -47,6 +47,7 @@ export default function JobDescriptionInput({ onSubmit, resumeContent }: JobDesc
             }
 
             const data = await response.json();
+            console.log("Extracted skills:", data);
 
             // Call the onSubmit callback with the job description and extracted skills
             onSubmit(jobDescription, {

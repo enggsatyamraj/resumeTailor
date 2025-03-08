@@ -1,19 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import * as path from 'path';
-import { mkdir, writeFile } from 'fs/promises';
+import { mkdir, writeFile, readFile, unlink } from 'fs/promises';
 import { authOptions } from '../../auth/[...nextauth]/route';
-
-// Make the uploads directory if it doesn't exist
-const ensureUploadsDirectory = async (userId: string) => {
-    const userDir = path.join(process.cwd(), 'uploads', userId);
-    try {
-        await mkdir(userDir, { recursive: true });
-    } catch (error) {
-        console.error('Error creating directory:', error);
-    }
-    return userDir;
-};
+import { extractTextFromDocument } from '@/lib/document-parser';
+import * as os from 'os';
 
 export async function POST(request: NextRequest) {
     try {
@@ -34,7 +25,7 @@ export async function POST(request: NextRequest) {
         }
 
         // Check file type
-        const validTypes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+        const validTypes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'text/plain'];
         if (!validTypes.includes(file.type)) {
             return NextResponse.json({ error: 'Invalid file type' }, { status: 400 });
         }
@@ -44,31 +35,50 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'File too large' }, { status: 400 });
         }
 
-        // Create a safe filename
+        // Create a temporary file for processing
         const originalName = file.name;
         const fileExtension = path.extname(originalName);
         const timestamp = Date.now();
         const filename = `resume_${timestamp}${fileExtension}`;
 
-        // Ensure the uploads directory exists
-        const userDir = await ensureUploadsDirectory(userId);
-        const filePath = path.join(userDir, filename);
+        // Create temp directory
+        const tempDir = path.join(os.tmpdir(), `resume_${userId}_${timestamp}`);
+        await mkdir(tempDir, { recursive: true });
 
-        // Convert the file to a Buffer and save it
+        const tempFilePath = path.join(tempDir, filename);
+
+        // Convert the file to a Buffer and save it temporarily
         const buffer = Buffer.from(await file.arrayBuffer());
-        await writeFile(filePath, buffer);
+        await writeFile(tempFilePath, buffer);
 
-        // Here you would typically save the file metadata in your database
-        // For now, we'll just return the file information
+        // Extract text from the uploaded document
+        let textContent;
+
+        try {
+            textContent = await extractTextFromDocument(tempFilePath);
+        } catch (err) {
+            console.error('Error extracting text:', err);
+            textContent = "Error extracting text from document. Please try again with a different file.";
+        }
+
+        // Delete the temp file after processing
+        try {
+            await unlink(tempFilePath);
+        } catch (err) {
+            console.error('Error deleting temp file:', err);
+        }
+
+        // Return file information and extracted content
         return NextResponse.json({
             success: true,
             file: {
+                id: filename, // This is now just an identifier, not a physical file path
                 name: originalName,
                 size: file.size,
-                path: filePath,
                 type: file.type,
                 uploadedAt: new Date().toISOString()
-            }
+            },
+            content: textContent
         });
 
     } catch (error) {

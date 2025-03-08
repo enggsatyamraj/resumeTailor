@@ -50,8 +50,12 @@ export default function DashboardContent({ userId }: DashboardContentProps) {
     });
 
     // Handle resume upload completion
-    const handleResumeUploaded = (data: { fileId: string; fileName: string; content?: string }) => {
-        setResumeData(data);
+    const handleResumeUploaded = (data: { fileId: string; fileName: string; content: string }) => {
+        setResumeData({
+            fileId: data.fileId,
+            fileName: data.fileName,
+            content: data.content
+        });
         setStageComplete({ ...stageComplete, 'upload-resume': true });
         setCurrentStage('job-description');
     };

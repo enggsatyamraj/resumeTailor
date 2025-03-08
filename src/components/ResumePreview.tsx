@@ -60,8 +60,8 @@ export default function ResumePreview({ resumeData, selectedSkills, jobDescripti
 
     // Generate the tailored resume
     const generateResume = async () => {
-        if (!resumeData.fileId) {
-            setError('No resume found. Please upload your resume first.');
+        if (!resumeData.content) {
+            setError('No resume content found. Please upload your resume first.');
             return;
         }
 
@@ -77,7 +77,7 @@ export default function ResumePreview({ resumeData, selectedSkills, jobDescripti
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
-                    resumeId: resumeData.fileId,
+                    resumeContent: resumeData.content,
                     skills,
                     jobDescription
                 }),
@@ -176,7 +176,7 @@ export default function ResumePreview({ resumeData, selectedSkills, jobDescripti
                                 <LoaderIcon className="h-8 w-8 mx-auto mb-4 animate-spin text-primary" />
                                 <p>Generating your tailored resume...</p>
                                 <p className="text-sm text-gray-500 mt-2">
-                                    We're adding your selected skills and optimizing your resume for the job description.
+                                    We&apos;re adding your selected skills and optimizing your resume for the job description.
                                 </p>
                             </div>
                         ) : tailoredResume ? (

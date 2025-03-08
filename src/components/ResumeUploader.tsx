@@ -5,9 +5,14 @@ import { useDropzone } from 'react-dropzone';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { FileIcon, UploadCloudIcon, AlertTriangleIcon, XIcon } from "lucide-react";
+import { FileIcon, UploadCloudIcon, AlertTriangleIcon, XIcon, LoaderIcon } from "lucide-react";
 
-export default function ResumeUploader() {
+interface ResumeUploaderProps {
+    onUploadComplete: (data: { fileId: string; fileName: string; content: string }) => void;
+    userId?: string;
+}
+
+export default function ResumeUploader({ onUploadComplete }: ResumeUploaderProps) {
     const [file, setFile] = useState<File | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [isUploading, setIsUploading] = useState(false);
@@ -16,9 +21,9 @@ export default function ResumeUploader() {
         const selectedFile = acceptedFiles[0];
 
         // Validate file type
-        const validTypes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+        const validTypes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'text/plain'];
         if (!validTypes.includes(selectedFile.type)) {
-            setError('Please upload a PDF or Word document (.doc, .docx)');
+            setError('Please upload a PDF or Word document (.doc, .docx) or text file (.txt)');
             return;
         }
 
@@ -38,7 +43,8 @@ export default function ResumeUploader() {
         accept: {
             'application/pdf': ['.pdf'],
             'application/msword': ['.doc'],
-            'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx']
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'],
+            'text/plain': ['.txt']
         }
     });
 
@@ -46,17 +52,20 @@ export default function ResumeUploader() {
         if (!file) return;
 
         setIsUploading(true);
+        setError(null);
 
         // Create a FormData object
         const formData = new FormData();
         formData.append('resume', file);
 
         try {
-            // Replace with your actual API endpoint
+            // Send the file to the API for text extraction
             const response = await fetch('/api/resume/upload', {
                 method: 'POST',
                 body: formData,
             });
+
+            console.log("Response::::::", response);
 
             if (!response.ok) {
                 throw new Error('Upload failed');
@@ -66,7 +75,16 @@ export default function ResumeUploader() {
             const data = await response.json();
             console.log('Upload successful:', data);
 
-            // TODO: Navigate to the next step or show success message
+            // Call the onUploadComplete callback with the extracted data
+            if (data.success && data.content) {
+                onUploadComplete({
+                    fileId: data.file.id,
+                    fileName: data.file.name,
+                    content: data.content
+                });
+            } else {
+                throw new Error('Failed to extract content from resume');
+            }
 
         } catch (error) {
             console.error('Error uploading file:', error);
@@ -81,11 +99,11 @@ export default function ResumeUploader() {
     };
 
     return (
-        <Card className="w-full max-w-md mx-auto">
-            <CardHeader>
+        <Card className="shadow-none border-0">
+            <CardHeader className="pb-3">
                 <CardTitle>Upload Your Resume</CardTitle>
                 <CardDescription>
-                    Upload your existing resume in PDF or Word format
+                    Upload your existing resume in PDF, Word, or Text format
                 </CardDescription>
             </CardHeader>
             <CardContent>
@@ -108,7 +126,7 @@ export default function ResumeUploader() {
                             {isDragActive ? 'Drop your resume here' : 'Drag & drop your resume here'}
                         </p>
                         <p className="text-xs text-gray-500">
-                            Supports PDF, DOC, and DOCX (max 5MB)
+                            Supports PDF, DOC, DOCX, and TXT (max 5MB)
                         </p>
                     </div>
                 ) : (
@@ -143,7 +161,14 @@ export default function ResumeUploader() {
                     disabled={!file || isUploading}
                     className="w-full"
                 >
-                    {isUploading ? 'Uploading...' : 'Upload Resume'}
+                    {isUploading ? (
+                        <>
+                            <LoaderIcon className="mr-2 h-4 w-4 animate-spin" />
+                            Processing...
+                        </>
+                    ) : (
+                        'Upload Resume'
+                    )}
                 </Button>
             </CardFooter>
         </Card>

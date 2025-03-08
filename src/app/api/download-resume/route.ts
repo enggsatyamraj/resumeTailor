@@ -1,19 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '../auth/[...nextauth]/route';
-import { mkdir, writeFile } from 'fs/promises';
-import * as path from 'path';
-
-// Make sure the directory exists
-const ensureDirectory = async (userId: string) => {
-    const userDir = path.join(process.cwd(), 'downloads', userId);
-    try {
-        await mkdir(userDir, { recursive: true });
-    } catch (error) {
-        console.error('Error creating directory:', error);
-    }
-    return userDir;
-};
+import { readFile, unlink } from 'fs/promises';
+import { generatePdf } from '@/lib/pdf-generator';
 
 export async function POST(request: NextRequest) {
     try {
@@ -24,35 +13,30 @@ export async function POST(request: NextRequest) {
         }
 
         const userId = session.user.id;
+        const userName = session.user.name || 'User';
 
         // Parse the request body
-        const { content, originalFileName } = await request.json();
+        const { content } = await request.json();
 
         if (!content) {
             return NextResponse.json({ error: 'Resume content is required' }, { status: 400 });
         }
 
-        // Generate a filename if not provided
-        const fileName = originalFileName || 'tailored_resume.txt';
+        // Generate PDF using LaTeX
+        const pdfFilePath = await generatePdf(content, userId, userName);
 
-        // In a real implementation, you would convert the content to PDF or DOCX format
-        // For now, we'll just create a text file
+        // Read the generated PDF
+        const pdfContent = await readFile(pdfFilePath);
 
-        // Ensure the downloads directory exists
-        const userDir = await ensureDirectory(userId);
-        const timestamp = Date.now();
-        const filePath = path.join(userDir, `tailored_${timestamp}_${fileName}`);
+        // Clean up the temporary file
+        await unlink(pdfFilePath).catch(() => { });
 
-        // Write the content to a file
-        await writeFile(filePath, content);
-
-        // In a real app, you would stream the file back to the client
-        // For simplicity, we'll just return the content as text
+        // Return the PDF file
         const headers = new Headers();
-        headers.append('Content-Type', 'text/plain');
-        headers.append('Content-Disposition', `attachment; filename="tailored_${fileName}"`);
+        headers.append('Content-Type', 'application/pdf');
+        headers.append('Content-Disposition', `attachment; filename="tailored_resume.pdf"`);
 
-        return new NextResponse(content, {
+        return new NextResponse(pdfContent, {
             status: 200,
             headers
         });
