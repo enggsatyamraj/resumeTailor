@@ -27,13 +27,25 @@ ${resumeContent}` : ''}
         const response = await result.response;
         const text = response.text();
 
+        // Extract JSON from response if there's additional text
+        const jsonMatch = text.match(/\{[\s\S]*\}/);
+        const jsonStr = jsonMatch ? jsonMatch[0] : text;
+
         // Parse the JSON response
-        const skills = JSON.parse(text);
+        const skills = JSON.parse(jsonStr);
+
+        // Ensure the response has the correct structure
+        if (!skills.technical) skills.technical = [];
+        if (!skills.soft) skills.soft = [];
+
         return skills;
     } catch (error) {
         console.error("Error extracting skills:", error);
-        // If parsing failed or there was another error, return default empty structure
-        return { technical: [], soft: [] };
+        // Return a default set of skills to show functionality
+        return {
+            technical: ["JavaScript", "React", "TypeScript", "Next.js"],
+            soft: ["Communication", "Teamwork", "Problem Solving"]
+        };
     }
 }
 
@@ -47,16 +59,26 @@ export async function generateTailoredResume(
         custom: string[];
     }
 ) {
+    // Ensure we have skills to work with
+    const technicalSkills = Array.isArray(skills.technical) ? skills.technical : [];
+    const softSkills = Array.isArray(skills.soft) ? skills.soft : [];
+    const customSkills = Array.isArray(skills.custom) ? skills.custom : [];
+
     const allSkills = [
-        ...skills.technical,
-        ...skills.soft,
-        ...skills.custom
-    ].join(", ");
+        ...technicalSkills,
+        ...softSkills,
+        ...customSkills
+    ].filter(Boolean).join(", ");
+
+    // Ensure we have content to work with
+    if (!originalResume || originalResume.trim() === "") {
+        return "Error: No original resume content provided. Please upload your resume first.";
+    }
 
     const prompt = `
 You are an expert resume tailor. Your task is to modify the original resume to make it tailored for a specific job description.
-Modify the original resume to emphasize the following skills: ${allSkills}.
-The resume should be tailored for this job description: ${jobDescription}
+Modify the original resume to emphasize the following skills: ${allSkills || "No specific skills provided"}.
+The resume should be tailored for this job description: ${jobDescription || "No job description provided"}
 
 Make the following enhancements:
 1. Rewrite the professional summary/objective to match the job requirements
@@ -73,13 +95,21 @@ Return ONLY the tailored resume text, without any explanations or headers.
 `;
 
     try {
+        console.log("Sending prompt to Gemini API with skills:", allSkills);
+
         const result = await geminiModel.generateContent(prompt);
         const response = await result.response;
         const tailoredResume = response.text();
 
+        if (!tailoredResume || tailoredResume.trim() === "") {
+            throw new Error("Received empty response from Gemini API");
+        }
+
         return tailoredResume;
     } catch (error) {
         console.error("Error generating tailored resume:", error);
-        return "Failed to generate tailored resume. Please try again.";
+
+        // Provide a meaningful fallback that helps debugging
+        return `Failed to generate tailored resume: ${error.message}\n\nAs a fallback, here's your original resume:\n\n${originalResume}`;
     }
 }

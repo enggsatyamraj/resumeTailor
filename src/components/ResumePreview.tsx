@@ -71,6 +71,10 @@ export default function ResumePreview({ resumeData, selectedSkills, jobDescripti
         try {
             const skills = getSelectedSkills();
 
+            console.log("Generating resume with skills:", skills);
+            console.log("Job description:", jobDescription);
+            console.log("Original resume content length:", resumeData.content.length);
+
             const response = await fetch('/api/generate-resume', {
                 method: 'POST',
                 headers: {
@@ -84,15 +88,23 @@ export default function ResumePreview({ resumeData, selectedSkills, jobDescripti
             });
 
             if (!response.ok) {
-                throw new Error('Failed to generate tailored resume');
+                const errorText = await response.text();
+                console.error("API error response:", errorText);
+                throw new Error(`Failed to generate tailored resume: ${response.status} ${response.statusText}`);
             }
 
             const data = await response.json();
+            console.log("Resume generation successful, received data:", data);
+
+            if (!data.tailoredResume) {
+                throw new Error('No tailored resume content received from API');
+            }
+
             setTailoredResume(data.tailoredResume);
 
         } catch (error) {
             console.error('Error generating resume:', error);
-            setError('Failed to generate tailored resume. Please try again.');
+            setError(`Failed to generate tailored resume: ${error.message}`);
         } finally {
             setIsGenerating(false);
         }
@@ -108,6 +120,8 @@ export default function ResumePreview({ resumeData, selectedSkills, jobDescripti
         setIsDownloading(true);
 
         try {
+            console.log("Initiating resume download...");
+
             const response = await fetch('/api/download-resume', {
                 method: 'POST',
                 headers: {
@@ -120,11 +134,16 @@ export default function ResumePreview({ resumeData, selectedSkills, jobDescripti
             });
 
             if (!response.ok) {
-                throw new Error('Failed to download resume');
+                const errorText = await response.text();
+                console.error("Download API error:", errorText);
+                throw new Error(`Failed to download resume: ${response.status} ${response.statusText}`);
             }
+
+            console.log("Download response received successfully");
 
             // Get the blob from the response
             const blob = await response.blob();
+            console.log("Response blob:", blob.type, blob.size);
 
             // Create a URL for the blob
             const url = window.URL.createObjectURL(blob);
@@ -132,17 +151,22 @@ export default function ResumePreview({ resumeData, selectedSkills, jobDescripti
             // Create a link element and click it to trigger download
             const a = document.createElement('a');
             a.href = url;
-            a.download = `tailored_${resumeData.fileName || 'resume.pdf'}`;
+            a.download = `tailored_${resumeData.fileName || 'resume.html'}`;
             document.body.appendChild(a);
+
+            console.log("Triggering download...");
             a.click();
 
             // Clean up
-            window.URL.revokeObjectURL(url);
-            document.body.removeChild(a);
+            setTimeout(() => {
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+                console.log("Download cleanup complete");
+            }, 100);
 
         } catch (error) {
             console.error('Error downloading resume:', error);
-            setError('Failed to download resume. Please try again.');
+            setError(`Failed to download resume: ${error.message}`);
         } finally {
             setIsDownloading(false);
         }
@@ -234,7 +258,7 @@ export default function ResumePreview({ resumeData, selectedSkills, jobDescripti
                     </TabsContent>
                 </Tabs>
             </CardContent>
-            <CardFooter>
+            <CardFooter className="flex flex-col gap-2">
                 <Button
                     onClick={downloadResume}
                     disabled={!tailoredResume || isDownloading}
@@ -248,10 +272,13 @@ export default function ResumePreview({ resumeData, selectedSkills, jobDescripti
                     ) : (
                         <>
                             <DownloadIcon className="h-4 w-4" />
-                            Download Resume
+                            Download Resume as HTML
                         </>
                     )}
                 </Button>
+                <p className="text-xs text-center text-gray-500">
+                    You can print the HTML file as PDF using your browser&apos;s print option (Ctrl+P or Cmd+P)
+                </p>
             </CardFooter>
         </Card>
     );

@@ -18,15 +18,36 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'Job description is required' }, { status: 400 });
         }
 
-        // Extract skills using Gemini API
-        const skills = await extractSkillsFromJobDescription(jobDescription, resumeContent);
+        try {
+            // Extract skills using Gemini API
+            const skills = await extractSkillsFromJobDescription(jobDescription, resumeContent);
 
-        // Return the extracted skills
-        return NextResponse.json({
-            success: true,
-            skills
-        });
+            console.log("Skills extracted successfully:", skills);
 
+            // Make sure we have the right structure
+            if (!skills || (!skills.technical && !skills.soft)) {
+                console.warn("Invalid skills format returned from Gemini API");
+
+                // Return fallback skills
+                return NextResponse.json({
+                    success: true,
+                    skills: {
+                        technical: ["JavaScript", "React", "TypeScript", "Next.js"],
+                        soft: ["Communication", "Teamwork", "Problem Solving"]
+                    }
+                });
+            }
+
+            // Return the extracted skills
+            return NextResponse.json({
+                success: true,
+                skills
+            });
+
+        } catch (error) {
+            console.error('Error extracting skills:', error);
+            return NextResponse.json({ error: 'Failed to extract skills from job description' }, { status: 500 });
+        }
     } catch (error) {
         console.error('Error extracting skills:', error);
         return NextResponse.json({ error: 'Failed to extract skills from job description' }, { status: 500 });

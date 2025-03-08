@@ -57,7 +57,15 @@ export default function SkillsSelection({ extractedSkills, onComplete }: SkillsS
 
     // Handle submit
     const handleSubmit = () => {
-        onComplete(skills);
+        // Make sure we have valid skill data before proceeding
+        const validSkills = {
+            technical: Array.isArray(skills.technical) ? skills.technical : [],
+            soft: Array.isArray(skills.soft) ? skills.soft : [],
+            custom: Array.isArray(skills.custom) ? skills.custom : []
+        };
+
+        console.log("Submitting selected skills:", validSkills);
+        onComplete(validSkills);
     };
 
     return (

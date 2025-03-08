@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '../auth/[...nextauth]/route';
-import { readFile, unlink } from 'fs/promises';
-import { generatePdf } from '@/lib/pdf-generator';
+import { createDownloadableHtml } from '@/lib/html-to-pdf';
 
 export async function POST(request: NextRequest) {
     try {
@@ -22,21 +21,17 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'Resume content is required' }, { status: 400 });
         }
 
-        // Generate PDF using LaTeX
-        const pdfFilePath = await generatePdf(content, userId, userName);
+        console.log('Generating HTML for resume download');
 
-        // Read the generated PDF
-        const pdfContent = await readFile(pdfFilePath);
+        // Generate HTML instead of PDF
+        const htmlContent = createDownloadableHtml(content, userName);
 
-        // Clean up the temporary file
-        await unlink(pdfFilePath).catch(() => { });
-
-        // Return the PDF file
+        // Return the HTML file
         const headers = new Headers();
-        headers.append('Content-Type', 'application/pdf');
-        headers.append('Content-Disposition', `attachment; filename="tailored_resume.pdf"`);
+        headers.append('Content-Type', 'text/html');
+        headers.append('Content-Disposition', `attachment; filename="tailored_resume.html"`);
 
-        return new NextResponse(pdfContent, {
+        return new NextResponse(htmlContent, {
             status: 200,
             headers
         });

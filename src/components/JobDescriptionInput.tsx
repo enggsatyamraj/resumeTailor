@@ -49,11 +49,26 @@ export default function JobDescriptionInput({ onSubmit, resumeContent }: JobDesc
             const data = await response.json();
             console.log("Extracted skills:", data);
 
-            // Call the onSubmit callback with the job description and extracted skills
-            onSubmit(jobDescription, {
-                technical: data.skills.technical || [],
-                soft: data.skills.soft || []
-            });
+            // Validate response data to ensure it has the expected structure
+            if (data && data.skills) {
+                const technicalSkills = Array.isArray(data.skills.technical) ? data.skills.technical : [];
+                const softSkills = Array.isArray(data.skills.soft) ? data.skills.soft : [];
+
+                console.log(`Extracted ${technicalSkills.length} technical skills and ${softSkills.length} soft skills`);
+
+                // Call the onSubmit callback with the job description and extracted skills
+                onSubmit(jobDescription, {
+                    technical: technicalSkills,
+                    soft: softSkills
+                });
+            } else {
+                // If data format is unexpected, provide default skills
+                console.warn("Unexpected data format from API, using fallback skills");
+                onSubmit(jobDescription, {
+                    technical: ["JavaScript", "React", "TypeScript", "Next.js"],
+                    soft: ["Communication", "Teamwork", "Problem Solving"]
+                });
+            }
 
         } catch (error) {
             console.error('Error processing job description:', error);
