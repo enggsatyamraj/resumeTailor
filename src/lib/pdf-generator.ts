@@ -1,4 +1,4 @@
-// src/lib/pdf-generator.ts
+// src/lib/pdf-generator.ts - Fixed version
 import puppeteer from 'puppeteer';
 import { writeFile, mkdir } from 'fs/promises';
 import path from 'path';
@@ -6,129 +6,140 @@ import * as os from 'os';
 
 /**
  * Generate an ATS-friendly PDF resume from content
- * - Uses a clean, standard structure that ATS systems can parse easily
- * - Maintains proper heading hierarchy and section organization
- * - Avoids complex formatting that might confuse ATS systems
+ * - Preserves all original content
+ * - Maintains proper formatting for ATS compatibility
  */
 export async function generateAtsFriendlyPdf(content: string, userName: string): Promise<{ filePath: string, buffer: Buffer }> {
-    try {
-        // Create a temporary directory
-        const tempDir = path.join(os.tmpdir(), `resume_${Date.now()}`);
-        await mkdir(tempDir, { recursive: true });
+  try {
+    // Create a temporary directory
+    const tempDir = path.join(os.tmpdir(), `resume_${Date.now()}`);
+    await mkdir(tempDir, { recursive: true });
 
-        // Generate HTML with ATS-friendly formatting
-        const html = generateAtsOptimizedHtml(content, userName);
+    // Generate HTML with ATS-friendly formatting
+    const html = generateAtsOptimizedHtml(content, userName);
 
-        // Write HTML to a temporary file
-        const htmlPath = path.join(tempDir, 'resume.html');
-        await writeFile(htmlPath, html);
+    // Write HTML to a temporary file
+    const htmlPath = path.join(tempDir, 'resume.html');
+    await writeFile(htmlPath, html);
 
-        // Use Puppeteer to convert HTML to PDF
-        const browser = await puppeteer.launch({
-            headless: 'new',
-            args: ['--no-sandbox', '--disable-setuid-sandbox']
-        });
+    // Use Puppeteer to convert HTML to PDF
+    const browser = await puppeteer.launch({
+      headless: 'new',
+      args: ['--no-sandbox', '--disable-setuid-sandbox']
+    });
 
-        const page = await browser.newPage();
-        await page.setContent(html, { waitUntil: 'networkidle0' });
+    const page = await browser.newPage();
+    await page.setContent(html, { waitUntil: 'networkidle0' });
 
-        // Set PDF options for optimal ATS parsing
-        const pdfBuffer = await page.pdf({
-            format: 'A4',
-            margin: {
-                top: '0.5in',
-                right: '0.5in',
-                bottom: '0.5in',
-                left: '0.5in'
-            },
-            printBackground: true,
-            displayHeaderFooter: false,
-        });
+    // Set PDF options for optimal ATS parsing
+    const pdfBuffer = await page.pdf({
+      format: 'A4',
+      margin: {
+        top: '0.5in',
+        right: '0.5in',
+        bottom: '0.5in',
+        left: '0.5in'
+      },
+      printBackground: true,
+      displayHeaderFooter: false,
+    });
 
-        await browser.close();
+    await browser.close();
 
-        // Save the PDF
-        const pdfPath = path.join(tempDir, 'tailored_resume.pdf');
-        await writeFile(pdfPath, pdfBuffer);
+    // Save the PDF
+    const pdfPath = path.join(tempDir, 'tailored_resume.pdf');
+    await writeFile(pdfPath, pdfBuffer);
 
-        return {
-            filePath: pdfPath,
-            buffer: pdfBuffer
-        };
+    return {
+      filePath: pdfPath,
+      buffer: pdfBuffer
+    };
 
-    } catch (error) {
-        console.error('Error generating PDF:', error);
-        throw new Error('Failed to generate PDF resume');
-    }
+  } catch (error) {
+    console.error('Error generating PDF:', error);
+    throw new Error('Failed to generate PDF resume');
+  }
 }
 
 /**
- * Generate ATS-optimized HTML with clean, scannable structure
- * - Uses semantic HTML elements properly
- * - Applies consistent formatting
- * - Avoids complex layouts that might confuse ATS parsers
+ * Generate ATS-optimized HTML that preserves all original content and formatting
  */
 function generateAtsOptimizedHtml(content: string, userName: string): string {
-    // Format the content into properly structured sections
-    const formattedContent = formatResumeContent(content);
+  // Better format the content while preserving structure
+  const formattedContent = preserveResumeStructure(content);
 
-    return `<!DOCTYPE html>
+  return `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>${userName}'s Resume</title>
   <style>
-    /* ATS-friendly styles - simple, clean, and straightforward */
+    /* ATS-friendly styles */
     body {
       font-family: 'Arial', 'Helvetica', sans-serif;
       font-size: 11pt;
-      line-height: 1.4;
+      line-height: 1.5;
       color: #000;
       margin: 0;
       padding: 0;
     }
     
-    /* Main container */
     .container {
       padding: 0.5in;
       max-width: 8.5in;
       margin: 0 auto;
     }
     
-    /* Header section */
-    header {
-      margin-bottom: 20px;
-      text-align: center;
+    h1, h2, h3, h4, h5, h6 {
+      margin-top: 12px;
+      margin-bottom: 8px;
+      page-break-after: avoid;
     }
     
-    h1 {
-      font-size: 18pt;
-      margin: 0 0 5px 0;
-      text-transform: uppercase;
+    h1 { font-size: 18pt; }
+    h2 { font-size: 14pt; }
+    h3 { font-size: 12pt; }
+    
+    p {
+      margin: 6px 0;
+      text-align: justify;
+    }
+    
+    .section {
+      margin-bottom: 15px;
+      page-break-inside: avoid;
+    }
+    
+    ul, ol {
+      margin: 6px 0;
+      padding-left: 18px;
+    }
+    
+    li {
+      margin-bottom: 6px;
+      text-align: justify;
+      position: relative;
+    }
+    
+    /* Specific element styling */
+    .name {
+      font-size: 22pt;
+      font-weight: bold;
+      margin-bottom: 8px;
     }
     
     .contact-info {
-      font-size: 10pt;
-      margin-bottom: 15px;
+      margin-bottom: 12px;
     }
     
-    /* Section styling */
-    section {
-      margin-bottom: 20px;
-    }
-    
-    h2 {
-      font-size: 14pt;
+    .section-heading {
+      font-weight: bold;
       border-bottom: 1px solid #000;
+      padding-bottom: 3px;
+      margin-top: 15px;
       margin-bottom: 10px;
-      padding-bottom: 2px;
       text-transform: uppercase;
-    }
-    
-    h3 {
-      font-size: 12pt;
-      margin: 0 0 5px 0;
     }
     
     .job-title {
@@ -141,33 +152,34 @@ function generateAtsOptimizedHtml(content: string, userName: string): string {
     
     .date {
       font-style: italic;
-      font-weight: normal;
     }
     
-    .job-description {
-      margin-top: 5px;
+    .preserve-format {
+      white-space: pre-wrap;
+      word-wrap: break-word;
     }
     
-    ul {
-      margin: 5px 0;
-      padding-left: 20px;
-    }
-    
-    li {
-      margin-bottom: 5px;
-    }
-    
+    /* Create a multi-column layout for skills if needed */
     .skills-list {
-      display: flex;
-      flex-wrap: wrap;
-      margin: 0;
-      padding: 0;
-      list-style-type: none;
+      column-count: 2;
+      column-gap: 20px;
     }
     
-    .skills-list li {
-      margin-right: 15px;
-      margin-bottom: 5px;
+    @media print {
+      body {
+        padding: 0;
+        font-size: 11pt;
+      }
+      
+      .container {
+        padding: 0;
+        box-shadow: none;
+      }
+      
+      a {
+        text-decoration: none;
+        color: #000;
+      }
     }
   </style>
 </head>
@@ -180,17 +192,45 @@ function generateAtsOptimizedHtml(content: string, userName: string): string {
 }
 
 /**
- * Format resume content into structured sections
- * This function attempts to identify and format different resume sections
+ * Preserve and enhance the resume structure for HTML conversion
  */
-function formatResumeContent(content: string): string {
-    // For now, we'll wrap the content directly while preserving its structure
-    // A more sophisticated version would parse and reorganize sections
+function preserveResumeStructure(content: string): string {
+  let processedContent = content;
 
-    // Replace newlines with <br> tags to preserve formatting
-    const formattedContent = content
-        .replace(/\n/g, '<br>')
-        .replace(/\t/g, '&nbsp;&nbsp;&nbsp;&nbsp;');
+  // First, identify and handle section headings
+  // Look for common section names (all caps followed by newline)
+  const sectionPattern = /\b(PROFESSIONAL SUMMARY|EXPERIENCE|EDUCATION|SKILLS|CORE COMPETENCIES|PROFESSIONAL EXPERIENCE|ACHIEVEMENTS|CERTIFICATIONS|PROJECTS|WORK EXPERIENCE|TECHNICAL SKILLS)\b/gi;
+  processedContent = processedContent.replace(sectionPattern, match => {
+    return `<div class="section-heading">${match}</div>`;
+  });
 
-    return formattedContent;
+  // Handle bullet points (lines starting with • or -, or numbers followed by a period)
+  const bulletPattern = /^(•|-|\d+\.) (.*?)$/gm;
+  processedContent = processedContent.replace(bulletPattern, '<li>$2</li>');
+
+  // Wrap consecutive list items in <ul> tags
+  processedContent = processedContent.replace(/(<li>.*?<\/li>\s*)+/g, '<ul>$&</ul>');
+
+  // Handle paragraphs (text blocks separated by multiple newlines)
+  const paragraphPattern = /(.+?)(\n{2,}|$)/g;
+  processedContent = processedContent.replace(paragraphPattern, (_, paragraph) => {
+    // Skip if it already has HTML tags
+    if (paragraph.includes('<') && paragraph.includes('>')) {
+      return paragraph;
+    }
+    return `<p>${paragraph}</p>\n\n`;
+  });
+
+  // Convert remaining newlines to <br> tags
+  processedContent = processedContent.replace(/\n/g, '<br>');
+
+  // Handle job titles and companies with dates
+  const jobTitlePattern = /([A-Za-z\s]+) \| ([A-Za-z\s]+) \(([A-Za-z0-9\s-]+)\)/g;
+  processedContent = processedContent.replace(jobTitlePattern,
+    '<div class="job-title">$1</div> <div class="company">$2</div> <span class="date">$3</span>');
+
+  // Clean up any double <br> tags
+  processedContent = processedContent.replace(/<br><br>/g, '<br>');
+
+  return processedContent;
 }

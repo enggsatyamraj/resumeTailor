@@ -1,3 +1,5 @@
+// src/lib/gemini.ts - Fixed version
+
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
 // Initialize the Gemini API client
@@ -49,7 +51,7 @@ ${resumeContent}` : ''}
     }
 }
 
-// Generate tailored resume
+// FIXED VERSION of generate tailored resume
 export async function generateTailoredResume(
     originalResume: string,
     jobDescription: string,
@@ -76,22 +78,35 @@ export async function generateTailoredResume(
     }
 
     const prompt = `
-You are an expert resume tailor. Your task is to modify the original resume to make it tailored for a specific job description.
-Modify the original resume to emphasize the following skills: ${allSkills || "No specific skills provided"}.
-The resume should be tailored for this job description: ${jobDescription || "No job description provided"}
+You are an expert ATS resume optimizer. I'm going to provide you with a resume and a job description.
 
-Make the following enhancements:
-1. Rewrite the professional summary/objective to match the job requirements
-2. Reorganize and emphasize the skills that match the job description
-3. Adjust job experience descriptions to highlight relevant experiences
-4. Maintain the original format and sections of the resume
-5. Do not fabricate any information, only work with what is provided
-6. Format the resume in a clean, professional way
+EXTREMELY IMPORTANT: You must return the ENTIRE resume with ALL original content preserved. Do not remove ANY information from the original resume.
+
+Your ONLY tasks are to:
+1. KEEP the entire original resume structure, all sections, and all content
+2. ADD relevant keywords from the job description where appropriate
+3. EMPHASIZE skills and experiences that match the job requirements
+4. REWORD some bullet points to better highlight relevant achievements 
+5. MAINTAIN the exact same sections, headings, contact information, and overall structure
+
+DO NOT:
+- Remove any sections or content from the original resume
+- Change the overall structure or order of the resume
+- Add fictional experiences or qualifications
+- Completely rewrite sections
+
+The final output MUST contain all information from the original resume, just optimized for ATS scanning and the specific job.
 
 Original Resume:
 ${originalResume}
 
-Return ONLY the tailored resume text, without any explanations or headers.
+Job Description:
+${jobDescription}
+
+Important Skills to Emphasize:
+${allSkills}
+
+Return the COMPLETE enhanced resume with ALL original content preserved. Make sure to include ALL sections from the original resume (Professional Summary, Core Competencies, Professional Experience, Education, etc.).
 `;
 
     try {
@@ -103,6 +118,16 @@ Return ONLY the tailored resume text, without any explanations or headers.
 
         if (!tailoredResume || tailoredResume.trim() === "") {
             throw new Error("Received empty response from Gemini API");
+        }
+
+        // Validation - check if the tailored resume is significantly shorter than the original
+        // This is a simple check to catch cases where content might be lost
+        if (tailoredResume.length < originalResume.length * 0.9) {
+            console.warn("Warning: Tailored resume is significantly shorter than original. This might indicate lost content.");
+            console.warn(`Original length: ${originalResume.length}, Tailored length: ${tailoredResume.length}`);
+
+            // If it's too short, return the original with a note
+            return `${originalResume}\n\n--- NOTE: The AI-enhanced version appeared to lose content, so the original resume is shown instead. ---`;
         }
 
         return tailoredResume;
